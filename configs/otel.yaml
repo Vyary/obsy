@@ -1,0 +1,39 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:9464
+    send_timestamps: true
+    metric_expiration: 180m
+
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  otlphttp:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp]

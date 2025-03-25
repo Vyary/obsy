@@ -1,0 +1,88 @@
+services:
+  collector:
+    image: otel/opentelemetry-collector-contrib
+    configs:
+      - source: otel-config
+        target: /etc/otelcol-contrib/config.yaml
+
+  prometheus:
+    image: prom/prometheus
+    configs:
+      - source: prom-config
+        target: /etc/prometheus/prometheus.yaml
+    volumes:
+      - prom-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+      - "--log.level=error"
+
+  tempo:
+    image: grafana/tempo:latest
+    configs:
+      - source: tempo-config
+        target: /etc/tempo.yaml
+    volumes:
+      - tempo-data:/var/tempo
+    command:
+      - "-config.file=/etc/tempo.yaml"
+      - "-log.level=error"
+
+  loki:
+    image: grafana/loki:latest
+    environment:
+      - LOKI_LOG_LEVEL=error
+    configs:
+      - source: loki-config
+        target: /etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki:rw
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+      - "-log.level=error"
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_LOG_LEVEL=error
+    configs:
+      - source: grafana-config
+        target: /etc/grafana/provisioning/datasources/datasource.yaml
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+
+configs:
+  otel-config:
+    external: true
+  prom-config:
+    external: true
+  tempo-config:
+    external: true
+  loki-config:
+    external: true
+  grafana-config:
+    external: true
+
+volumes:
+  prom-data:
+  tempo-data:
+  loki-data:
+  grafana-data:
